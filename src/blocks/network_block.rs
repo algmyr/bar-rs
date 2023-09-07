@@ -31,7 +31,7 @@ impl Default for NetworkBlock {
 impl BlockInterface for NetworkBlock {
   fn name(&self) -> &str { "network" }
 
-  fn update(&mut self) {
+  fn update(&mut self) -> anyhow::Result<()> {
     let update = |history: &mut VecDeque<(Instant, u64)>, time, value| {
       history.push_back((time, value));
       while history
@@ -67,6 +67,8 @@ impl BlockInterface for NetworkBlock {
     let now = std::time::Instant::now();
     self.bps_up = update(&mut self.up_history, now, up);
     self.bps_down = update(&mut self.down_history, now, down);
+
+    Ok(())
   }
 
   fn to_string(&self) -> String {

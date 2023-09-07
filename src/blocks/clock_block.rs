@@ -1,6 +1,5 @@
-use crate::colors::Color;
-
 use super::BlockInterface;
+use crate::colors::Color;
 
 #[derive(Default)]
 pub struct ClockBlock {
@@ -12,5 +11,8 @@ impl BlockInterface for ClockBlock {
   fn color(&self) -> Color { Color::White }
   fn text(&self) -> &str { &self.text }
 
-  fn update(&mut self) { self.text = chrono::Local::now().format("%H:%M").to_string(); }
+  fn update(&mut self) -> anyhow::Result<()> {
+    self.text = chrono::Local::now().format("%H:%M").to_string();
+    Ok(())
+  }
 }

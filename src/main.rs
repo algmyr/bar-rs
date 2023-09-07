@@ -13,13 +13,15 @@ struct Block {
 }
 
 impl Block {
-  pub fn update(&mut self) { self.block.update(); }
+  pub fn update(&mut self) { self.block.update().unwrap(); }
 
   pub fn to_string(&self) -> String { self.block.to_string() }
 
   #[allow(dead_code)]
   pub fn handle_input(&mut self, event: &InputEvent) {
-    self.block.handle_input(event);
+    if let Ok(true) = self.block.handle_input(event) {
+      self.update();
+    }
   }
 
   pub fn name(&self) -> &str { self.block.name() }

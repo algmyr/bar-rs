@@ -44,6 +44,6 @@ pub trait BlockInterface {
 
   fn to_string(&self) -> String { make_block(self.name(), self.text(), self.color()) }
 
-  fn update(&mut self);
-  fn handle_input(&mut self, _event: &InputEvent) {}
+  fn update(&mut self) -> anyhow::Result<()> { Ok(()) }
+  fn handle_input(&mut self, _event: &InputEvent) -> anyhow::Result<bool> { Ok(false) }
 }

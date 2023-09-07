@@ -52,7 +52,7 @@ fn find_active_non_kdeconnect(
 impl BlockInterface for MediaBlock {
   fn name(&self) -> &str { "media" }
 
-  fn update(&mut self) {
+  fn update(&mut self) -> anyhow::Result<()> {
     if let Some(player) = find_active_non_kdeconnect(&self.player_finder.lock().unwrap())
     {
       if let Ok(metadata) = player.get_metadata() {
@@ -86,17 +86,18 @@ impl BlockInterface for MediaBlock {
           make_block("media_progress", &progress, Color::Green),
           // progress
         );
-        return;
+        return Ok(());
       }
       self.text = make_block("media_error", "No song metadata found", self.color);
-      return;
+      return Ok(());
     }
     self.text = make_block("media_error", "No player found", self.color);
+    Ok(())
   }
 
   fn to_string(&self) -> String { self.text.clone() }
 
-  fn handle_input(&mut self, event: &InputEvent) {
+  fn handle_input(&mut self, event: &InputEvent) -> anyhow::Result<bool> {
     let dev = || find_active_non_kdeconnect(&self.player_finder.lock().unwrap());
     use crate::events::Button::*;
     match event.button {
@@ -111,11 +112,10 @@ impl BlockInterface for MediaBlock {
         let volume = player.get_volume().ok()?;
         player.set_volume(volume / 1.05).ok()
       }),
-      ScrollLeft => None,
-      ScrollRight => None,
       Back => dev().and_then(|player| player.previous().ok()),
       Forward => dev().and_then(|player| player.next().ok()),
+      _ => return Ok(false),
     };
-    self.update();
+    Ok(true)
   }
 }

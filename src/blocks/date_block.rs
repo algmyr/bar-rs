@@ -13,7 +13,7 @@ impl BlockInterface for DateBlock {
   fn color(&self) -> Color { Color::White }
   fn text(&self) -> &str { &self.text }
 
-  fn update(&mut self) {
+  fn update(&mut self) -> anyhow::Result<()> {
     let now = chrono::Local::now();
     let suffix = match now.day() {
       1 | 21 | 31 => "st",
@@ -23,5 +23,6 @@ impl BlockInterface for DateBlock {
     };
     let fmt = format!("%A %-d{suffix} of %B");
     self.text = now.format(&fmt).to_string();
+    Ok(())
   }
 }
