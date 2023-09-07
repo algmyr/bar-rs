@@ -6,7 +6,6 @@ use std::time::Duration;
 use bar_rs::blocks;
 use bar_rs::blocks::BlockInterface;
 use bar_rs::events::InputEvent;
-
 struct Block {
   block: Box<dyn BlockInterface + Send>,
   update_time: Duration,
@@ -15,7 +14,7 @@ struct Block {
 impl Block {
   pub fn update(&mut self) { self.block.update().unwrap(); }
 
-  pub fn to_string(&self) -> String { self.block.to_string() }
+  pub fn get_blocks(&self) -> Vec<blocks::BlockOutput> { self.block.get_blocks() }
 
   #[allow(dead_code)]
   pub fn handle_input(&mut self, event: &InputEvent) {
@@ -31,14 +30,18 @@ fn setup_printer(blocks: Vec<Arc<Mutex<Block>>>) -> JoinHandle<()> {
   std::thread::spawn(move || {
     println!(r#"{{ "version": 1, "click_events": true  }}"#);
     println!("[");
+
     loop {
       println!(
-        "[{}],",
-        blocks
-          .iter()
-          .map(|block| block.lock().unwrap().to_string())
-          .collect::<Vec<String>>()
-          .join(",")
+        "{},",
+        serde_json::to_string(
+          &blocks
+            .iter()
+            .map(|block| { block.lock().unwrap().get_blocks() })
+            .flatten()
+            .collect::<Vec<_>>()
+        )
+        .unwrap()
       );
       std::io::stdout().flush().unwrap();
       std::thread::sleep(std::time::Duration::from_millis(250));
@@ -63,7 +66,7 @@ fn setup_input_handler(blocks: Vec<Arc<Mutex<Block>>>) -> JoinHandle<()> {
   std::thread::spawn(move || {
     let mut lines = std::io::stdin().lines();
     lines.next().unwrap().unwrap();
-  
+
     while let Some(Ok(line)) = lines.next() {
       let line = line.trim_start_matches(',');
       let event: InputEvent = serde_json::from_str(line).unwrap();
@@ -106,25 +109,24 @@ fn main() {
 
   let blocks: Vec<Arc<Mutex<Block>>> = if args[1] == "DP-2" {
     vec![
-    setup_block!(blocks::MediaBlock, SUB_SECOND),
-    setup_block!(blocks::Separator, NEVER),
-    setup_block!(blocks::LoadBlock, SECOND),
-    setup_block!(blocks::Separator, NEVER),
-    setup_block!(blocks::VolumeBlock, SUB_SECOND),
-    setup_block!(blocks::Separator, NEVER),
-    setup_block!(blocks::NetworkBlock, SECOND),
-    setup_block!(blocks::Separator, NEVER),
-    setup_block!(blocks::DateBlock, SUB_MINUTE),
-    setup_block!(blocks::Separator, NEVER),
-    setup_block!(blocks::ClockBlock, SUB_MINUTE),
-  ]
+      setup_block!(blocks::MediaBlock, SUB_SECOND),
+      setup_block!(blocks::Separator, NEVER),
+      setup_block!(blocks::LoadBlock, SECOND),
+      setup_block!(blocks::Separator, NEVER),
+      setup_block!(blocks::VolumeBlock, SUB_SECOND),
+      setup_block!(blocks::Separator, NEVER),
+      setup_block!(blocks::NetworkBlock, SECOND),
+      setup_block!(blocks::Separator, NEVER),
+      setup_block!(blocks::DateBlock, SUB_MINUTE),
+      setup_block!(blocks::Separator, NEVER),
+      setup_block!(blocks::ClockBlock, SUB_MINUTE),
+    ]
   } else {
     vec![
-    setup_block!(blocks::DateBlock, SUB_MINUTE),
-    setup_block!(blocks::Separator, NEVER),
-    setup_block!(blocks::ClockBlock, SUB_MINUTE),
-  ]
-
+      setup_block!(blocks::DateBlock, SUB_MINUTE),
+      setup_block!(blocks::Separator, NEVER),
+      setup_block!(blocks::ClockBlock, SUB_MINUTE),
+    ]
   };
 
   let block_threads = setup_block_updates(blocks.clone());

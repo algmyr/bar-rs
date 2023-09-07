@@ -1,14 +1,16 @@
-use std::{time::{Duration, Instant}, collections::VecDeque};
+use std::collections::VecDeque;
+use std::time::{Duration, Instant};
 
-use sysinfo::{SystemExt, NetworkExt};
-
-use crate::{colors::Color, blocks::make_block};
+use sysinfo::{NetworkExt, SystemExt};
 
 use super::BlockInterface;
+use crate::blocks::{make_block, BlockOutput};
+use crate::colors::Color;
 
 const HIST_LEN: Duration = Duration::from_secs(10);
 
 pub struct NetworkBlock {
+  blocks: [BlockOutput; 2],
   system: sysinfo::System,
   up_history: VecDeque<(Instant, u64)>,
   down_history: VecDeque<(Instant, u64)>,
@@ -19,6 +21,7 @@ pub struct NetworkBlock {
 impl Default for NetworkBlock {
   fn default() -> Self {
     Self {
+      blocks: Default::default(),
       system: sysinfo::System::new_all(),
       up_history: Default::default(),
       down_history: Default::default(),
@@ -68,10 +71,6 @@ impl BlockInterface for NetworkBlock {
     self.bps_up = update(&mut self.up_history, now, up);
     self.bps_down = update(&mut self.down_history, now, down);
 
-    Ok(())
-  }
-
-  fn to_string(&self) -> String {
     let pretty_speed = |bps: Option<u64>| {
       if let Some(bps) = bps {
         if bps >= 100000000 {
@@ -102,10 +101,13 @@ impl BlockInterface for NetworkBlock {
       pretty_speed(self.bps_up),
       pretty_speed(self.bps_down)
     );
-    format!(
-      "{},{}",
-      make_block("net_device", "Eth ", Color::White),
-      make_block("net_speed", &speeds, Color::Blue),
-    )
+    self.blocks[0] = make_block("net_device", "Eth ", Color::White);
+    self.blocks[1] = make_block("net_speed", &speeds, Color::Blue);
+
+    Ok(())
+  }
+
+  fn get_blocks(&self) -> Vec<BlockOutput> {
+    self.blocks.to_vec()
   }
 }
