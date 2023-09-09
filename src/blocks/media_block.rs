@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use mpris::PlaybackStatus;
+use mpris::{PlaybackStatus, Player};
 
 use super::{make_block, BlockInterface, BlockOutput};
 use crate::colors::Color;
@@ -46,18 +46,28 @@ fn format_duration(dur: Option<Duration>) -> String {
 fn find_active_non_kdeconnect(
   player_finder: &mpris::PlayerFinder,
 ) -> Option<mpris::Player> {
-  let mut best_player = None;
-  for player in player_finder.find_all().ok()? {
-    if let Ok(PlaybackStatus::Playing) = player.get_playback_status() {
-      if player.bus_name_player_name_part() == "spotify" {
+  let cmp_key = |player: &Player| {
+    let name_priority = match player.bus_name_player_name_part() {
+      "spotify" => 0,
+      "kdeconnect" => 2,
+      _ => 1,
+    };
 
-        best_player = Some(player);
-      } else if player.bus_name_player_name_part() != "kdeconnect" && best_player.is_none() {
-        best_player = Some(player);
-      }
-    }
+    let status_priority = match player.get_playback_status() {
+      Ok(PlaybackStatus::Playing) => 0,
+      Ok(PlaybackStatus::Paused) => 1,
+      Ok(PlaybackStatus::Stopped) => 2,
+      _ => 3,
+    };
+
+    return (status_priority, name_priority);
+  };
+
+  if let Ok(mut players) = player_finder.find_all() {
+    players.sort_by_cached_key(cmp_key);
+    return players.into_iter().next();
   }
-  best_player.or_else(|| player_finder.find_active().ok())
+  None
 }
 
 impl BlockInterface for MediaBlock {
