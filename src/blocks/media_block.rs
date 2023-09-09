@@ -77,13 +77,9 @@ impl BlockInterface for MediaBlock {
     if let Some(player) = find_active_non_kdeconnect(&self.player_finder.lock().unwrap())
     {
       if let Ok(metadata) = player.get_metadata() {
-        let artist = if let Some(artists) = metadata.artists() {
-          artists.join(", ")
-        } else {
-          "Unknown Artist".to_string()
-        };
-        let album = metadata.album_name().unwrap_or("Unknown Album");
-        let title = metadata.title().unwrap_or("Unknown Title");
+        let artist = metadata.artists().map(|a| a.join(", "));
+        let album = metadata.album_name();
+        let title = metadata.title();
         let status = match player.get_playback_status() {
           Ok(PlaybackStatus::Playing) => "▶ ",
           Ok(PlaybackStatus::Paused) => "⏸ ",
@@ -97,25 +93,31 @@ impl BlockInterface for MediaBlock {
           format_duration(metadata.length())
         );
 
-        self.blocks = vec!(
-          make_block("media_status", &status, Color::White),
-          make_block("media_title", &format!("{title}  "), Color::Red),
-          make_block("media_artist", &format!("{artist}  "), Color::Yellow),
-          make_block("media_album", &format!("{album}  "), Color::Blue),
-          make_block("media_progress", &progress, Color::Green),
-        );
+        let mut blocks = vec![];
+        blocks.push(make_block("media_status", &status, Color::White));
+        blocks.push(make_block("media_title", &format!("{}  ", title.unwrap_or("Unknown Title")), Color::Red));
+        if let Some(artist) = artist {
+          blocks.push(make_block("media_artist", &format!("{}  ", artist), Color::Yellow));
+        }
+        if let Some(album) = album {
+          blocks.push(make_block("media_album", &format!("{}  ", album), Color::Blue));
+        }
+        blocks.push(make_block("media_progress", &progress, Color::Green));
+        self.blocks = blocks;
         return Ok(());
       }
-      self.blocks = vec![make_block("media_error", "No song metadata found", self.color)];
+      self.blocks = vec![make_block(
+        "media_error",
+        "No song metadata found",
+        self.color,
+      )];
       return Ok(());
     }
     self.blocks = vec![make_block("media_error", "No player found", self.color)];
     Ok(())
   }
 
-  fn get_blocks(&self) -> Vec<BlockOutput> {
-    self.blocks.clone()
-  }
+  fn get_blocks(&self) -> Vec<BlockOutput> { self.blocks.clone() }
 
   fn handle_input(&mut self, event: &InputEvent) -> anyhow::Result<bool> {
     let dev = || find_active_non_kdeconnect(&self.player_finder.lock().unwrap());
